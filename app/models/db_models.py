@@ -23,7 +23,9 @@ def user_task_to_dict(user_task) -> Dict[str, Any]:
     return {
         "userId": user_task.userId,
         "taskType": user_task.taskType,
+        "taskName": user_task.taskName,
         "progress": user_task.progress,
         "isCompleted": user_task.isCompleted,
+        "isRewarded": user_task.isRewarded,  # 添加奖励领取状态
         "lastUpdateTime": datetime.now().isoformat()
     }
