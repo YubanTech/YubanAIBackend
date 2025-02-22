@@ -1,0 +1,13 @@
+{% raw %}
+{% block prompt %}
+今日聊天总结（200字以内）：
+{% for message in messages %}
+{{ loop.index }}. {{ message.timestamp|datetimeformat('%H:%M') }} - {{ message.content|truncate(50) }}
+{% endfor %}
+
+主要话题：{{ main_topics|join('、') }}
+情感倾向：{{ sentiment_analysis }}
+
+鼓励话语：继续和我们保持交流吧！每天的对话都是成长的机会~ (✧ω✧)
+{% endblock %}
+{% endraw %}

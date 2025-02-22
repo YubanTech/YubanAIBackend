@@ -53,3 +53,16 @@ async def update_user_growth(userId: str, taskType: TaskType):
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/users/{userId}/tasks/{taskType}/claim")
+async def claim_task_reward(userId: str, taskType: TaskType):
+    try:
+        result = await UserService.claim_task_reward(userId, taskType)
+        if not result:
+            raise HTTPException(
+                status_code=400, 
+                detail="Invalid task or task not completed or reward already claimed"
+            )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
