@@ -1,6 +1,5 @@
 from datetime import datetime
 from typing import List
-from memobase import MemoBaseClient, ChatBlob
 from app.core.config import settings
 from app.models.user import UserInfo, UpdateUserRequest  # Add UpdateUserRequest here
 from app.services.user_service import UserService
