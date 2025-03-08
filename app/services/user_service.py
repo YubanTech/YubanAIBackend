@@ -1,6 +1,13 @@
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from typing import Optional, List, Dict, Any
 from bson import ObjectId
+import logging  # 添加logging导入
+import time
+import math
+
+# 定义logger
+logger = logging.getLogger(__name__)
+
 from app.database.mongodb import MongoDB
 from app.models.user import (
     CreateUserRequest, UpdateUserRequest, UserInfo, UserGrowth, 
@@ -9,6 +16,35 @@ from app.models.user import (
 from app.models.db_models import user_info_to_dict, user_growth_to_dict, user_task_to_dict
 
 class UserService:
+    @staticmethod
+    def calculate_growth_days(created_time_ms: int) -> int:
+        """
+        计算用户的总成长天数
+        
+        Args:
+            created_time_ms: 用户创建时间的毫秒时间戳
+            
+        Returns:
+            int: 用户注册至今的总天数（向上取整）
+        """
+        try:
+            # 获取当前时间的毫秒时间戳
+            current_time_ms = int(time.time() * 1000)
+            
+            # 计算时间差（毫秒）
+            time_diff_ms = current_time_ms - created_time_ms
+            
+            # 转换为天数（1天 = 86400000毫秒）
+            days = time_diff_ms / 86400000
+            
+            # 向上取整
+            days_rounded = math.ceil(days)
+                
+            return max(1, days_rounded)  # 至少返回1天
+        except Exception as e:
+            logger.error(f"Error calculating growth days: {str(e)}")
+            return 1  # 出错时默认返回1天
+
     @staticmethod
     def _process_mongodb_doc(doc: Dict[str, Any]) -> Dict[str, Any]:
         if doc is None:
@@ -24,6 +60,7 @@ class UserService:
 
     @staticmethod
     async def create_user(user_request: CreateUserRequest) -> None:
+        logger.info(f"Creating user: {user_request}")
         user_collection = MongoDB.get_collection("users")
         growth_collection = MongoDB.get_collection("user_growth")
         task_collection = MongoDB.get_collection("user_tasks")
@@ -31,15 +68,23 @@ class UserService:
         # 检查用户是否已存在
         existing_user = await user_collection.find_one({"userId": user_request.userId})
         if existing_user:
+            logger.info(f"User already exists: {existing_user}")
             return None
-            
+        
+        # 获取当前时间
+        current_time = datetime.now().isoformat()
+        # 获取当前毫秒时间戳
+        current_ms_timestamp = int(time.time() * 1000)
+        
         # 创建新用户
         user_info = UserInfo(
             userId=user_request.userId,
             userNickName=user_request.userNickName,
             aiAgentName=user_request.aiAgentName,
-            status=UserStatus.LOGIN,
-            lastUpdateTime=datetime.now().isoformat()
+            agentId=None,
+            status=UserStatus.CHAT_READY,
+            lastUpdateTime=current_time,
+            createdTime=current_ms_timestamp  # 使用毫秒时间戳
         )
         
         # 创建用户成长信息
@@ -47,7 +92,7 @@ class UserService:
             userId=user_request.userId,
             currentPoints=0,
             totalPoints=1000,
-            lastUpdateTime=datetime.now().isoformat()
+            lastUpdateTime=current_time
         )
         
         # 创建用户任务
@@ -58,7 +103,7 @@ class UserService:
                 taskType=task.type,
                 progress=0,
                 isCompleted=False,
-                lastUpdateTime=datetime.now().isoformat()
+                lastUpdateTime=current_time
             )
             tasks.append(user_task_to_dict(user_task))
         
@@ -94,6 +139,7 @@ class UserService:
         
     @staticmethod
     async def get_user_status(userId: str) -> Optional[dict]:
+        logger.info(f"Getting user status for user: {userId}")
         user_collection = MongoDB.get_collection("users")
         growth_collection = MongoDB.get_collection("user_growth")
         
@@ -102,10 +148,39 @@ class UserService:
         
         if not user_info or not user_growth:
             return None
+        
+        # 处理文档
+        processed_user_info = UserService._process_mongodb_doc(user_info)
+        processed_user_growth = UserService._process_mongodb_doc(user_growth)
+        
+        # 计算总成长天数
+        # 如果用户没有createdTime字段，使用当前时间作为默认值
+        created_time_ms = processed_user_info.get("createdTime", int(time.time() * 1000))
+        total_growth_days = UserService.calculate_growth_days(created_time_ms)
+        logger.info(f"User {userId} has been growing for {total_growth_days} days")
+        
+        # 构造用户信息和成长信息对象
+        user_info_obj = UserInfo(
+            userId=processed_user_info["userId"],
+            userNickName=processed_user_info.get("userNickName", ""),
+            aiAgentName=processed_user_info.get("aiAgentName", ""),
+            agentId=processed_user_info.get("agentId"),
+            status=processed_user_info.get("status", UserStatus.LOGIN),
+            lastUpdateTime=processed_user_info.get("lastUpdateTime", ""),
+            createdTime=created_time_ms
+        )
+        
+        user_growth_obj = UserGrowth(
+            userId=processed_user_growth["userId"],
+            currentPoints=processed_user_growth.get("currentPoints", 0),
+            totalPoints=processed_user_growth.get("totalPoints", 1000),
+            lastUpdateTime=processed_user_growth.get("lastUpdateTime", "")
+        )
             
         return {
-            "userInfo": UserService._process_mongodb_doc(user_info),
-            "userGrowth": UserService._process_mongodb_doc(user_growth)
+            "userInfo": user_info_obj,
+            "userGrowth": user_growth_obj,
+            "totalGrowthDays": total_growth_days
         }
         
     @staticmethod

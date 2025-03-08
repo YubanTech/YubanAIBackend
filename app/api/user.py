@@ -1,4 +1,11 @@
 from fastapi import APIRouter, HTTPException
+import logging
+import traceback  # 添加traceback模块
+
+# 设置更详细的日志级别
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 from app.models.user import (
     CreateUserRequest, UpdateUserRequest, GetUserStatusRequest,
     GetUserGrowthRequest, GetUserStatusResponse, GetUserGrowthResponse,
@@ -11,28 +18,39 @@ router = APIRouter()
 @router.post("/users")
 async def create_user(user_request: CreateUserRequest):
     try:
+        logger.debug(f"Creating user with request: {user_request}")
         await UserService.create_user(user_request)
         return {"message": "User created successfully"}
     except Exception as e:
+        logger.error(f"Error creating user: {str(e)}")
+        logger.error(traceback.format_exc())  # 打印完整的异常堆栈
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.put("/users/{userId}")
 async def update_user(userId: str, update_request: UpdateUserRequest):
     try:
+        logger.debug(f"Updating user {userId} with request: {update_request}")
         await UserService.update_user(userId, update_request)
         return {"message": "User updated successfully"}
     except Exception as e:
+        logger.error(f"Error updating user: {str(e)}")
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/users/{userId}/status", response_model=GetUserStatusResponse)
 async def get_user_status(userId: str):
     try:
+        logger.debug(f"Getting status for user: {userId}")
         result = await UserService.get_user_status(userId)
+        logger.debug(f"User status result: {result}")
         if not result:
+            logger.warning(f"User not found: {userId}")
             raise HTTPException(status_code=404, detail="User not found")
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error getting user status: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.get("/users/{userId}/growth", response_model=GetUserGrowthResponse)
 async def get_user_growth(userId: str):
