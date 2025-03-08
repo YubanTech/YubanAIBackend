@@ -71,16 +71,26 @@ class UserService:
     async def update_user(userId: str, update_request: UpdateUserRequest) -> None:
         user_collection = MongoDB.get_collection("users")
         
+        print(f"更新用户请求数据: {update_request}")  # 添加调试信息
+        
         update_data = {
             "userNickName": update_request.userNickName,
             "aiAgentName": update_request.aiAgentName,
             "lastUpdateTime": datetime.now().isoformat()
         }
         
-        await user_collection.update_one(
+        # 检查 agentId
+        if hasattr(update_request, 'agentId') and update_request.agentId:
+            print(f"更新 agentId: {update_request.agentId}")  # 添加调试信息
+            update_data["agentId"] = update_request.agentId
+        
+        print(f"最终更新数据: {update_data}")  # 添加调试信息
+        
+        result = await user_collection.update_one(
             {"userId": userId},
             {"$set": update_data}
         )
+        print(f"更新结果: matched={result.matched_count}, modified={result.modified_count}")  # 添加调试信息
         
     @staticmethod
     async def get_user_status(userId: str) -> Optional[dict]:
@@ -209,3 +219,24 @@ class UserService:
             
         # 返回更新后的用户成长信息
         return await UserService.get_user_growth(userId)
+
+    @staticmethod
+    async def get_user(userId: str) -> Optional[UserInfo]:
+        user_collection = MongoDB.get_collection("users")
+        
+        user_doc = await user_collection.find_one({"userId": userId})
+        if not user_doc:
+            return None
+            
+        # 处理 MongoDB 文档
+        processed_doc = UserService._process_mongodb_doc(user_doc)
+        
+        # 转换为 UserInfo 对象
+        return UserInfo(
+            userId=processed_doc["userId"],
+            userNickName=processed_doc.get("userNickName", ""),
+            aiAgentName=processed_doc.get("aiAgentName", "小月"),
+            status=UserStatus(processed_doc.get("status", UserStatus.LOGIN.value)),
+            lastUpdateTime=processed_doc.get("lastUpdateTime", datetime.now().isoformat()),
+            agentId=processed_doc.get("agentId")
+        )

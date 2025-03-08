@@ -21,6 +21,7 @@ class CreateUserRequest(BaseModel):
 class UpdateUserRequest(BaseModel):
     userNickName: str
     aiAgentName: str
+    agentId: Optional[str] = None  # Add this field
 
 class GetUserStatusRequest(BaseModel):
     userId: str
@@ -33,7 +34,7 @@ class UserInfo(BaseModel):
     userId: str
     userNickName: str
     aiAgentName: str
-    agentId: Optional[str] = None
+    agentId: Optional[str] = None  # MemoBase 用户 ID
     status: UserStatus = UserStatus.LOGIN
     lastUpdateTime: str
 
