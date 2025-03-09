@@ -126,20 +126,41 @@ class UserService:
 
     @staticmethod
     async def get_user_growth(userId: str) -> Optional[dict]:
+        print(f"开始获取用户成长信息，userId: {userId}")
         growth_collection = MongoDB.get_collection("user_growth")
         task_collection = MongoDB.get_collection("user_tasks")
         
         user_growth = await growth_collection.find_one({"userId": userId})
+        print(f"用户成长信息: {user_growth}")
         if not user_growth:
+            print("未找到用户成长信息")
             return None
             
         tasks = []
+        all_task_configs = GrowthTasks.get_all_tasks()
+        print(f"所有任务配置: {all_task_configs}")
+        
         async for task in task_collection.find({"userId": userId}):
+            print(f"处理任务: {task}")
             processed_task = UserService._process_mongodb_doc(task)
+            # 获取任务配置信息
+            task_config = all_task_configs.get(processed_task["taskType"])
+            print(f"任务配置信息: {task_config}")
+            
+            if task_config:
+                print(f"更新任务 {processed_task['taskType']} 的详细信息")
+                processed_task.update({
+                    "taskName": task_config.name,
+                    "requiredProgress": task_config.requiredProgress,
+                    "pointsReward": task_config.pointsReward
+                })
+                print(f"更新后的任务信息: {processed_task}")
+            else:
+                print(f"未找到任务 {processed_task['taskType']} 的配置信息")
             
             # 检查每日任务是否需要重置
             if UserService._should_reset_daily_task(processed_task):
-                # 更新任务状态为未完成
+                print(f"重置每日任务: {processed_task['taskType']}")
                 await task_collection.update_one(
                     {"userId": userId, "taskType": TaskType.DAILY_CHECK_IN},
                     {
@@ -154,10 +175,12 @@ class UserService:
                 
             tasks.append(processed_task)
             
-        return {
+        result = {
             "userGrowth": UserService._process_mongodb_doc(user_growth),
             "tasks": tasks
         }
+        print(f"最终返回结果: {result}")
+        return result
 
     @staticmethod
     async def update_user_growth(userId: str, taskType: TaskType) -> Optional[dict]:

@@ -50,6 +50,9 @@ class UserTask(BaseModel):
     progress: int
     isCompleted: bool
     lastUpdateTime: str
+    taskName: str
+    requiredProgress: int
+    pointsReward: int
 
 # Response Models
 class GetUserStatusResponse(BaseModel):
