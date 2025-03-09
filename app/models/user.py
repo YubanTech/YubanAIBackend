@@ -37,6 +37,7 @@ class UserInfo(BaseModel):
     agentId: Optional[str] = None  # MemoBase 用户 ID
     status: UserStatus = UserStatus.LOGIN
     lastUpdateTime: str
+    createdTime: int  # 毫秒级时间戳，表示用户创建时间
 
 class UserGrowth(BaseModel):
     userId: str
@@ -58,6 +59,7 @@ class UserTask(BaseModel):
 class GetUserStatusResponse(BaseModel):
     userInfo: UserInfo
     userGrowth: UserGrowth
+    totalGrowthDays: int  # 添加总成长天数字段
 
 class GetUserGrowthResponse(BaseModel):
     userGrowth: UserGrowth
