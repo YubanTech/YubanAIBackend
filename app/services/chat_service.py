@@ -1,5 +1,6 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional  # Add Optional here
+import time  # 添加这行
 from app.core.config import settings
 from app.models.user import UserInfo, UpdateUserRequest  # Add UpdateUserRequest here
 from app.services.user_service import UserService
@@ -47,12 +48,15 @@ class ChatService:
                 return "暂无历史情感记录"
 
     async def generate_response(self, user_id: str, message: str) -> str:
+        print(f"开始处理用户消息，user_id: {user_id}, message: {message}")
         user_info = await self.user_service.get_user(user_id)
+        print(f"获取到用户信息: {user_info}")
         if not user_info:
+            print("未找到用户信息")
             raise ValueError("User not found")
 
         try:
-            # 保存用户消息
+            print("开始保存用户消息")
             user_message = ChatMessage(
                 user_id=user_id,
                 role="user",
@@ -60,10 +64,12 @@ class ChatService:
                 agent_name=user_info.aiAgentName
             )
             await self.chat_repository.save_message(user_message)
+            print("用户消息保存成功")
 
             if self.use_dify:
-                # 获取或创建 conversation_id
+                print(f"使用 Dify API, conversation_id: {user_info.agentId}")
                 conversation_id = user_info.agentId
+                print("开始调用 Dify send_message")
                 response = await self.dify_client.send_message(
                     message=message,
                     user=user_id,
@@ -71,19 +77,22 @@ class ChatService:
                     agent_name=user_info.aiAgentName,
                     conversation_id=conversation_id
                 )
+                print(f"Dify 响应: {response}")
                 
-                # 如果是新用户（没有 conversation_id），保存返回的 conversation_id
                 if not conversation_id and response.get("conversation_id"):
+                    print(f"更新用户的 conversation_id: {response['conversation_id']}")
                     update_request = UpdateUserRequest(
                         userNickName=user_info.userNickName,
                         aiAgentName=user_info.aiAgentName,
                         agentId=response["conversation_id"]
                     )
                     await self.user_service.update_user(user_id, update_request)
+                    print("用户信息更新成功")
                 
                 answer = response.get("answer", "")
+                print(f"获取到回答: {answer}")
                 
-                # 保存助手回复
+                print("开始保存助手回复")
                 assistant_message = ChatMessage(
                     user_id=user_id,
                     role="assistant",
@@ -91,6 +100,7 @@ class ChatService:
                     agent_name=user_info.aiAgentName
                 )
                 await self.chat_repository.save_message(assistant_message)
+                print("助手回复保存成功")
                 
                 return answer
             else:
@@ -130,3 +140,14 @@ class ChatService:
         except Exception as e:
             print(f"获取聊天历史失败: {str(e)}")
             return []
+
+    async def get_user(self, user_id: str) -> Optional[UserInfo]:  # Add self parameter
+        user_info = await self.user_service.get_user(user_id)
+        if not user_info:
+            raise ValueError("User not found")
+            
+        # 确保包含 createdTime 字段
+        if not hasattr(user_info, 'createdTime'):
+            user_info.createdTime = int(time.time() * 1000)  # 使用当前时间戳作为默认值
+            
+        return user_info

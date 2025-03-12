@@ -97,10 +97,13 @@ class UserService:
         
         # 创建用户任务
         tasks = []
-        for task in GrowthTasks.get_all_tasks().values():
+        for task_config in GrowthTasks.get_all_tasks().values():
             user_task = UserTask(
                 userId=user_request.userId,
-                taskType=task.type,
+                taskType=task_config.type,
+                taskName=task_config.name,           # 添加任务名称
+                requiredProgress=task_config.requiredProgress,  # 添加所需进度
+                pointsReward=task_config.pointsReward,  # 添加奖励点数
                 progress=0,
                 isCompleted=False,
                 lastUpdateTime=current_time
@@ -187,7 +190,7 @@ class UserService:
     def _get_today_start() -> datetime:
         """获取今天0点的时间"""
         today = datetime.now()
-        return datetime.combine(today.date(), time.min)
+        return datetime.combine(today.date(), datetime.min.time())
 
     @staticmethod
     def _should_reset_daily_task(task: Dict[str, Any]) -> bool:
@@ -329,6 +332,9 @@ class UserService:
         # 处理 MongoDB 文档
         processed_doc = UserService._process_mongodb_doc(user_doc)
         
+        # 获取当前时间戳作为默认值
+        current_ms_timestamp = int(time.time() * 1000)
+        
         # 转换为 UserInfo 对象
         return UserInfo(
             userId=processed_doc["userId"],
@@ -336,5 +342,6 @@ class UserService:
             aiAgentName=processed_doc.get("aiAgentName", "小月"),
             status=UserStatus(processed_doc.get("status", UserStatus.LOGIN.value)),
             lastUpdateTime=processed_doc.get("lastUpdateTime", datetime.now().isoformat()),
-            agentId=processed_doc.get("agentId")
+            agentId=processed_doc.get("agentId"),
+            createdTime=processed_doc.get("createdTime", current_ms_timestamp)  # 添加 createdTime 字段
         )

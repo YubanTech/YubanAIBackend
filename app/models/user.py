@@ -38,6 +38,11 @@ class UserInfo(BaseModel):
     status: UserStatus = UserStatus.LOGIN
     lastUpdateTime: str
     createdTime: int  # 毫秒级时间戳，表示用户创建时间
+    
+    def __init__(self, **data):
+        print(f"正在创建 UserInfo 对象，输入数据: {data}")
+        super().__init__(**data)
+        print(f"UserInfo 对象创建完成: {self.dict()}")
 
 class UserGrowth(BaseModel):
     userId: str

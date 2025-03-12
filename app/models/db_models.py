@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Dict, Any
 import time
+from app.models.user import UserInfo, UserGrowth, UserTask, GrowthTasks
 
 def user_info_to_dict(user_info) -> Dict[str, Any]:
     current_time = datetime.now().isoformat()
@@ -25,11 +26,29 @@ def user_growth_to_dict(user_growth) -> Dict[str, Any]:
         "lastUpdateTime": datetime.now().isoformat()
     }
 
-def user_task_to_dict(user_task) -> Dict[str, Any]:
+def user_task_to_dict(task: UserTask) -> dict:
+    # 获取任务配置信息
+    task_config = GrowthTasks.get_all_tasks().get(task.taskType.value)  # 使用 .value 获取枚举值
+    if not task_config:
+        print(f"Warning: 未找到任务配置 {task.taskType}")
+        return {
+            "userId": task.userId,
+            "taskType": task.taskType,
+            "progress": task.progress,
+            "isCompleted": task.isCompleted,
+            "lastUpdateTime": task.lastUpdateTime,
+            "taskName": "未知任务",
+            "requiredProgress": 0,
+            "pointsReward": 0
+        }
+    
     return {
-        "userId": user_task.userId,
-        "taskType": user_task.taskType,
-        "progress": user_task.progress,
-        "isCompleted": user_task.isCompleted,
-        "lastUpdateTime": datetime.now().isoformat()
+        "userId": task.userId,
+        "taskType": task.taskType,
+        "progress": task.progress,
+        "isCompleted": task.isCompleted,
+        "lastUpdateTime": task.lastUpdateTime,
+        "taskName": task_config.name,
+        "requiredProgress": task_config.requiredProgress,
+        "pointsReward": task_config.pointsReward
     }
