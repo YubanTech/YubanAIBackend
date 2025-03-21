@@ -1,12 +1,13 @@
 from datetime import datetime
-from typing import List, Optional  # Add Optional here
-import time  # 添加这行
+from typing import List, Tuple, Optional
+import time
 from app.core.config import settings
-from app.models.user import UserInfo, UpdateUserRequest  # Add UpdateUserRequest here
+from app.models.user import UserInfo, UpdateUserRequest
 from app.services.user_service import UserService
 from app.services.dify_client import DifyClient
 from app.db.chat_repository import ChatRepository
-from app.models.chat import ChatMessage
+from app.models.chat import ChatMessage, ChatHistoryItem
+from app.database.mongodb import MongoDB  # Add this import
 
 class ChatService:
     def __init__(self):
@@ -57,11 +58,13 @@ class ChatService:
 
         try:
             print("开始保存用户消息")
+            current_time = datetime.now().isoformat()
             user_message = ChatMessage(
                 user_id=user_id,
                 role="user",
                 content=message,
-                agent_name=user_info.aiAgentName
+                agent_name=user_info.aiAgentName,
+                created_at=current_time  # 使用 created_at
             )
             await self.chat_repository.save_message(user_message)
             print("用户消息保存成功")
@@ -97,7 +100,8 @@ class ChatService:
                     user_id=user_id,
                     role="assistant",
                     content=answer,
-                    agent_name=user_info.aiAgentName
+                    agent_name=user_info.aiAgentName,
+                    created_at=current_time  # 修改为 created_at
                 )
                 await self.chat_repository.save_message(assistant_message)
                 print("助手回复保存成功")
@@ -119,7 +123,8 @@ class ChatService:
                     user_id=user_id,
                     role="assistant",
                     content=answer,
-                    agent_name=user_info.aiAgentName
+                    agent_name=user_info.aiAgentName,
+                    created_at=datetime.now().isoformat()  # 添加 created_at
                 )
                 await self.chat_repository.save_message(assistant_message)
                 
@@ -129,17 +134,52 @@ class ChatService:
             print(f"生成回复过程中出错: {str(e)}")
             raise
 
-    async def get_chat_history(self, user_id: str, start_time: datetime, end_time: datetime) -> List[dict]:
-        try:
-            messages = await self.chat_repository.get_messages_by_time_range(
-                user_id=user_id,
-                start_time=start_time,
-                end_time=end_time
-            )
-            return [msg.dict() for msg in messages]
-        except Exception as e:
-            print(f"获取聊天历史失败: {str(e)}")
-            return []
+    @staticmethod
+    async def get_chat_history(
+        user_id: str,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Tuple[List[ChatHistoryItem], int]:
+        chat_collection = MongoDB.get_collection("chat_messages")
+        
+        # 构建查询条件，添加 created_at 字段存在性检查
+        query = {
+            "user_id": user_id,
+            "created_at": {"$exists": True}  # 只查询包含 created_at 字段的记录
+        }
+        
+        if start_time:
+            query["created_at"]["$gte"] = start_time.isoformat()
+        if end_time:
+            query["created_at"]["$lte"] = end_time.isoformat()
+                
+        # 获取总记录数
+        total = await chat_collection.count_documents(query)
+        
+        # 计算分页
+        skip = (page - 1) * page_size
+        
+        # 获取指定页的记录
+        cursor = chat_collection.find(query)
+        cursor.sort("created_at", -1)  # 使用 created_at 排序
+        cursor.skip(skip).limit(page_size)
+        
+        history = []
+        async for doc in cursor:
+            # Convert datetime to ISO format string if needed
+            created_at = doc["created_at"]
+            if isinstance(created_at, datetime):
+                created_at = created_at.isoformat()
+                
+            history.append(ChatHistoryItem(
+                role=doc["role"],
+                content=doc["content"],
+                timestamp=created_at  # Now it's guaranteed to be a string
+            ).model_dump())
+            
+        return history, total
 
     async def get_user(self, user_id: str) -> Optional[UserInfo]:  # Add self parameter
         user_info = await self.user_service.get_user(user_id)

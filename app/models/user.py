@@ -53,12 +53,13 @@ class UserGrowth(BaseModel):
 class UserTask(BaseModel):
     userId: str
     taskType: TaskType
-    progress: int
-    isCompleted: bool
-    lastUpdateTime: str
     taskName: str
     requiredProgress: int
     pointsReward: int
+    progress: int
+    isCompleted: bool
+    pointsClaimed: bool = False  # 添加积分领取状态
+    lastUpdateTime: str
 
 # Response Models
 class GetUserStatusResponse(BaseModel):

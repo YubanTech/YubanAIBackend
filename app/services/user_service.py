@@ -221,36 +221,16 @@ class UserService:
         async for task in task_collection.find({"userId": userId}):
             print(f"处理任务: {task}")
             processed_task = UserService._process_mongodb_doc(task)
-            # 获取任务配置信息
             task_config = all_task_configs.get(processed_task["taskType"])
-            print(f"任务配置信息: {task_config}")
             
             if task_config:
-                print(f"更新任务 {processed_task['taskType']} 的详细信息")
                 processed_task.update({
                     "taskName": task_config.name,
                     "requiredProgress": task_config.requiredProgress,
-                    "pointsReward": task_config.pointsReward
+                    "pointsReward": task_config.pointsReward,
+                    "pointsClaimed": processed_task.get("pointsClaimed", False)  # 确保返回积分领取状态
                 })
-                print(f"更新后的任务信息: {processed_task}")
-            else:
-                print(f"未找到任务 {processed_task['taskType']} 的配置信息")
             
-            # 检查每日任务是否需要重置
-            if UserService._should_reset_daily_task(processed_task):
-                print(f"重置每日任务: {processed_task['taskType']}")
-                await task_collection.update_one(
-                    {"userId": userId, "taskType": TaskType.DAILY_CHECK_IN},
-                    {
-                        "$set": {
-                            "isCompleted": False,
-                            "progress": 0
-                        }
-                    }
-                )
-                processed_task["isCompleted"] = False
-                processed_task["progress"] = 0
-                
             tasks.append(processed_task)
             
         result = {
@@ -308,12 +288,14 @@ class UserService:
             }
         )
         
-        # 如果任务完成，增加成长值
-        if is_completed:
+        # 对话类任务每次都增加积分，其他任务仅在完成时增加积分
+        if taskType == TaskType.CHAT_ROUNDS or is_completed:
+            # 如果是对话任务，每次进度更新都给予相应积分
+            points_to_add = task_config.pointsReward
             await growth_collection.update_one(
                 {"userId": userId},
                 {
-                    "$inc": {"currentPoints": task_config.pointsReward},
+                    "$inc": {"currentPoints": points_to_add},
                     "$set": {"lastUpdateTime": datetime.now().isoformat()}
                 }
             )
@@ -345,3 +327,108 @@ class UserService:
             agentId=processed_doc.get("agentId"),
             createdTime=processed_doc.get("createdTime", current_ms_timestamp)  # 添加 createdTime 字段
         )
+
+    @staticmethod
+    async def mark_task_completed(userId: str, taskType: TaskType) -> Optional[dict]:
+        """标记任务为已完成状态"""
+        task_collection = MongoDB.get_collection("user_tasks")
+        
+        # 获取任务配置
+        task_config = GrowthTasks.get_all_tasks().get(taskType)
+        if not task_config:
+            return None
+            
+        # 获取当前任务状态
+        task = await task_collection.find_one({
+            "userId": userId,
+            "taskType": taskType
+        })
+        
+        if not task:
+            return None
+            
+        if task.get("isCompleted", False):
+            return None
+            
+        # 更新任务状态为已完成
+        current_time = datetime.now().isoformat()
+        result = await task_collection.update_one(
+            {
+                "userId": userId,
+                "taskType": taskType
+            },
+            {
+                "$set": {
+                    "isCompleted": True,
+                    "progress": task_config.requiredProgress,
+                    "lastUpdateTime": current_time
+                }
+            }
+        )
+        
+        if result.modified_count > 0:
+            return {
+                "taskType": taskType,
+                "isCompleted": True,
+                "progress": task_config.requiredProgress
+            }
+        return None
+
+    @staticmethod
+    async def claim_task_points(userId: str, taskType: TaskType) -> Optional[dict]:
+        """领取已完成任务的积分"""
+        task_collection = MongoDB.get_collection("user_tasks")
+        growth_collection = MongoDB.get_collection("user_growth")
+        
+        # 获取任务配置
+        task_config = GrowthTasks.get_all_tasks().get(taskType)
+        if not task_config:
+            return None
+            
+        # 获取任务状态
+        task = await task_collection.find_one({
+            "userId": userId,
+            "taskType": taskType
+        })
+        
+        # 检查任务是否已完成且未领取积分
+        if not task or not task.get("isCompleted", False) or task.get("pointsClaimed", False):
+            return None
+            
+        # 获取用户成长信息
+        user_growth = await growth_collection.find_one({"userId": userId})
+        if not user_growth:
+            return None
+            
+        current_time = datetime.now().isoformat()
+        
+        # 更新用户积分
+        new_current_points = user_growth.get("currentPoints", 0) + task_config.pointsReward
+        await growth_collection.update_one(
+            {"userId": userId},
+            {
+                "$set": {
+                    "currentPoints": new_current_points,
+                    "lastUpdateTime": current_time
+                }
+            }
+        )
+        
+        # 标记任务积分已领取
+        await task_collection.update_one(
+            {
+                "userId": userId,
+                "taskType": taskType
+            },
+            {
+                "$set": {
+                    "pointsClaimed": True,
+                    "lastUpdateTime": current_time
+                }
+            }
+        )
+        
+        return {
+            "pointsClaimed": task_config.pointsReward,
+            "currentPoints": new_current_points
+        }
