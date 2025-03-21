@@ -65,9 +65,27 @@ async def get_user_growth(userId: str):
 @router.post("/users/{userId}/growth/{taskType}")
 async def update_user_growth(userId: str, taskType: TaskType):
     try:
-        result = await UserService.update_user_growth(userId, taskType)
+        result = await UserService.mark_task_completed(userId, taskType)
         if not result:
             raise HTTPException(status_code=400, detail="Invalid task or task already completed")
         return result
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/users/{userId}/growth/{taskType}/claim")
+async def claim_task_points(userId: str, taskType: TaskType):
+    """领取指定任务的积分"""
+    try:
+        result = await UserService.claim_task_points(userId, taskType)
+        if not result:
+            raise HTTPException(status_code=400, detail="Task not completed or points already claimed")
+        return {
+            "message": "Points claimed successfully",
+            "taskType": taskType,
+            "pointsClaimed": result.get("pointsClaimed", 0),
+            "currentPoints": result.get("currentPoints", 0)
+        }
+    except Exception as e:
+        logger.error(f"Error claiming points: {str(e)}")
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))

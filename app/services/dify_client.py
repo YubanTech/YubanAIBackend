@@ -27,9 +27,10 @@ class DifyClient:
                     "response_mode": "blocking"
                 }
                 
-                if conversation_id:
+                # 只有当conversation_id不为None时才添加到请求数据中
+                if conversation_id is not None:
                     request_data["conversation_id"] = conversation_id
-                
+                print(f"发送消息的参数: {request_data}")
                 try:
                     response = await client.post(
                         f"{self.base_url}/chat-messages",

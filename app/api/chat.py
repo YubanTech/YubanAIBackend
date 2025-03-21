@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import List, Optional
+from pydantic import BaseModel  # Add this import
 from datetime import datetime
+from typing import List, Optional
+from app.models.chat import ChatHistoryItem, ChatHistoryResponse
 from app.services.chat_service import ChatService
 
 router = APIRouter()
@@ -26,6 +27,32 @@ class ChatHistoryItem(BaseModel):
 
 class ChatHistoryResponse(BaseModel):
     history: List[ChatHistoryItem]
+    total: int  # 添加总记录数
+    current_page: int  # 添加当前页码
+
+@router.get("/chat/history", response_model=ChatHistoryResponse)
+async def get_chat_history(
+    userId: str, 
+    page: int = 1,  # 当前页码，默认第1页
+    start_time: Optional[datetime] = None,  # 可选的开始时间
+    end_time: Optional[datetime] = None,  # 可选的结束时间
+    page_size: int = 20  # 每页记录数，默认20条
+):
+    try:
+        history, total = await ChatService.get_chat_history(
+            user_id=userId,
+            start_time=start_time,
+            end_time=end_time,
+            page=page,
+            page_size=page_size
+        )
+        return ChatHistoryResponse(
+            history=history,
+            total=total,
+            current_page=page
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 class SetAgentNameRequest(BaseModel):
     userId: str
@@ -57,17 +84,5 @@ async def chat(request: ChatRequest):
             message=response,
             timestamp=datetime.now().isoformat()
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/chat/history", response_model=ChatHistoryResponse)
-async def get_chat_history(userId: str, start_time: datetime, end_time: datetime):
-    try:
-        history = await ChatService.get_chat_history(
-            user_id=userId,
-            start_time=start_time,
-            end_time=end_time
-        )
-        return ChatHistoryResponse(history=history)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
