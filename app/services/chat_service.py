@@ -151,3 +151,5 @@ class ChatService:
             user_info.createdTime = int(time.time() * 1000)  # 使用当前时间戳作为默认值
             
         return user_info
+
+    # async def

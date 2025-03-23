@@ -10,6 +10,17 @@ class ChatRepository:
     async def save_message(self, message: ChatMessage):
         await self.collection.insert_one(message.dict())
 
+    async def get_messages_by_day(self, user_id: str, day: int) -> List[ChatMessage]:
+        cursor = self.collection.find({
+            "user_id": user_id,
+            "date_index": day
+        }).sort("created_at", 1)
+
+        messages = []
+        async for doc in cursor:
+            messages.append(ChatMessage(**doc))
+        return messages
+
     async def get_messages_by_time_range(
         self, 
         user_id: str, 
