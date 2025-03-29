@@ -4,16 +4,23 @@ from bson import ObjectId
 import logging  # 添加logging导入
 import time
 import math
-
+import requests
+import uuid
+# 添加这两行
+WX_APPID = "wx86ab8c9cb936067c"
+WX_SECRET = "fb90299a4f66bba528809f4f8f3065d8"
 # 定义logger
 logger = logging.getLogger(__name__)
 
 from app.database.mongodb import MongoDB
 from app.models.user import (
     CreateUserRequest, UpdateUserRequest, UserInfo, UserGrowth, 
-    UserTask, TaskType, UserStatus, GrowthTasks
+    UserTask, TaskType, UserStatus, GrowthTasks, WxLoginRequest
 )
 from app.models.db_models import user_info_to_dict, user_growth_to_dict, user_task_to_dict
+
+# 添加微信登录相关常量
+WX_CODE2SESSION_URL = "https://api.weixin.qq.com/sns/jscode2session"
 
 class UserService:
     @staticmethod
@@ -327,6 +334,109 @@ class UserService:
             agentId=processed_doc.get("agentId"),
             createdTime=processed_doc.get("createdTime", current_ms_timestamp)  # 添加 createdTime 字段
         )
+
+    @staticmethod
+    async def login_with_wechat(login_request: WxLoginRequest) -> Optional[dict]:
+        """
+        处理微信小程序登录（简化版）
+        """
+        try:
+            # 1. 调用微信API获取OpenID
+            wx_response = requests.get(
+                WX_CODE2SESSION_URL,
+                params={
+                    "appid": WX_APPID,
+                    "secret": WX_SECRET,
+                    "js_code": login_request.code,
+                    "grant_type": "authorization_code"
+                }
+            )
+            wx_data = wx_response.json()
+            
+            if "errcode" in wx_data and wx_data["errcode"] != 0:
+                logger.error(f"微信登录失败: {wx_data}")
+                return None
+            
+            openid = wx_data.get("openid")
+            if not openid:
+                logger.error("未能获取OpenID")
+                return None
+            
+            # 2. 查询用户是否存在
+            user_collection = MongoDB.get_collection("users")
+            existing_user = await user_collection.find_one({"openId": openid})
+            
+            # 获取当前时间作为更新/创建时间
+            current_time = datetime.now().isoformat()
+            current_ms_timestamp = int(time.time() * 1000)
+            
+            # 3. 处理用户信息
+            if existing_user:
+                # 用户已存在，更新信息
+                user_id = existing_user["userId"]
+                logger.info(f"用户已存在，更新信息: {user_id}")
+                
+                # 更新用户信息
+                await user_collection.update_one(
+                    {"userId": user_id},
+                    {"$set": {
+                        "userNickName": login_request.nickName,
+                        "avatarUrl": login_request.avatarUrl,
+                        "lastUpdateTime": current_time
+                    }}
+                )
+            else:
+                # 创建新用户
+                user_id = f"wxuser_{uuid.uuid4().hex[:8]}"
+                logger.info(f"创建新用户: {user_id}")
+                
+                # 创建用户基本信息
+                user_info = UserInfo(
+                    userId=user_id,
+                    userNickName=login_request.nickName,
+                    aiAgentName="AI助手",  # 默认AI助手名称
+                    status=UserStatus.CHAT_READY,
+                    lastUpdateTime=current_time,
+                    createdTime=current_ms_timestamp,
+                    openId=openid,
+                    avatarUrl=login_request.avatarUrl
+                )
+                
+                # 创建用户成长信息
+                user_growth = UserGrowth(
+                    userId=user_id,
+                    currentPoints=0,
+                    totalPoints=1000,
+                    lastUpdateTime=current_time
+                )
+                
+                # 创建用户任务
+                tasks = []
+                for task in GrowthTasks.get_all_tasks().values():
+                    user_task = UserTask(
+                        userId=user_id,
+                        taskType=task.type,
+                        progress=0,
+                        isCompleted=False,
+                        lastUpdateTime=current_time
+                    )
+                    tasks.append(user_task_to_dict(user_task))
+                
+                # 保存到数据库
+                await user_collection.insert_one(user_info_to_dict(user_info))
+                await MongoDB.get_collection("user_growth").insert_one(user_growth_to_dict(user_growth))
+                await MongoDB.get_collection("user_tasks").insert_many(tasks)
+            
+            # 5. 获取完整用户信息并返回
+            user_status = await UserService.get_user_status(user_id)
+            
+            return user_status  # 直接返回用户状态信息
+            
+        except Exception as e:
+            logger.error(f"微信登录处理错误: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
 
     @staticmethod
     async def mark_task_completed(userId: str, taskType: TaskType) -> Optional[dict]:

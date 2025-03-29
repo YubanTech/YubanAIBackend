@@ -9,7 +9,7 @@ logger.setLevel(logging.DEBUG)
 from app.models.user import (
     CreateUserRequest, UpdateUserRequest, GetUserStatusRequest,
     GetUserGrowthRequest, GetUserStatusResponse, GetUserGrowthResponse,
-    TaskType  # 添加 TaskType 导入
+    TaskType, WxLoginRequest, LoginResponse  # 添加 TaskType 和 WxLoginRequest 导入
 )
 from app.services.user_service import UserService
 
@@ -71,6 +71,20 @@ async def update_user_growth(userId: str, taskType: TaskType):
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/login/wechat", response_model=LoginResponse)
+async def login_with_wechat(login_request: WxLoginRequest):
+    try:
+        logger.debug(f"处理微信登录请求: {login_request.nickName}")
+        result = await UserService.login_with_wechat(login_request)
+        if not result:
+            logger.warning("登录失败")
+            raise HTTPException(status_code=400, detail="登录失败，请重试")
+        return result
+    except Exception as e:
+        logger.error(f"登录处理错误: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"服务器错误: {str(e)}")
 
 @router.post("/users/{userId}/growth/{taskType}/claim")
 async def claim_task_points(userId: str, taskType: TaskType):

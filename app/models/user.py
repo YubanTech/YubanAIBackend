@@ -34,10 +34,12 @@ class UserInfo(BaseModel):
     userId: str
     userNickName: str
     aiAgentName: str
-    agentId: Optional[str] = None  # MemoBase 用户 ID
+    agentId: Optional[str] = None
     status: UserStatus = UserStatus.LOGIN
     lastUpdateTime: str
-    createdTime: int  # 毫秒级时间戳，表示用户创建时间
+    createdTime: int  # 毫秒级时间戳
+    openId: Optional[str] = None  # 微信OpenID
+    avatarUrl: Optional[str] = None  # 微信头像URL
     
     def __init__(self, **data):
         print(f"正在创建 UserInfo 对象，输入数据: {data}")
@@ -105,3 +107,15 @@ class GrowthTasks:
             "FORTUNE_TELLING": cls.FORTUNE_TELLING,
             "DAILY_CHECK_IN": cls.DAILY_CHECK_IN
         }
+
+# 新增微信登录请求模型
+class WxLoginRequest(BaseModel):
+    code: str
+    nickName: str
+    avatarUrl: str
+
+# 新增登录响应模型（简化版，不包含token）
+class LoginResponse(BaseModel):
+    userInfo: UserInfo
+    userGrowth: UserGrowth
+    totalGrowthDays: int
