@@ -8,5 +8,5 @@ class ChatMessage(BaseModel):
     content: str
     created_at: datetime = datetime.now()
     # used for index
-    date_index: int = int(datetime.today().strftime("%Y%m%d"))
+    date_int: int = int(datetime.today().strftime("%Y%m%d"))
     agent_name: Optional[str] = None

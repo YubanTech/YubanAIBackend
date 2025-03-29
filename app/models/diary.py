@@ -8,5 +8,5 @@ class Diary(BaseModel):
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
     # used for index
-    date_index: int = int(datetime.today().strftime("%Y%m%d"))
-    date: str = datetime.today().strftime("%Y年%m月%d日")
+    date_int: int
+    date: str
