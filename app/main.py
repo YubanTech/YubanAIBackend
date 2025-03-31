@@ -13,24 +13,17 @@ logging.basicConfig(
 )
 
 from app.api.user import router as user_router
-from app.api.chat import router as chat_router  # 添加这行
 from app.api.diary import router as diary_router
+# from app.api.chat import router as chat_router  # 添加这行
+from app.api.tarot import router as tarot_router  # 添加这行
 from app.database.mongodb import MongoDB
 
 app = FastAPI(title="Talk to Myself API")
 
 @app.on_event("startup")
 async def startup():
-    logging.info("Starting up application")
-    try:
-        # 获取MongoDB连接URI
-        mongo_uri = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
-        logging.info(f"Connecting to MongoDB at {mongo_uri}")
-        await MongoDB.connect_db(mongo_uri)
-        logging.info("MongoDB connection established")
-    except Exception as e:
-        logging.error(f"Failed to connect to MongoDB: {str(e)}")
-        raise
+    mongo_uri = os.getenv("MONGODB_URL", "mongodb://mongo:27017")
+    await MongoDB.connect_db(mongo_uri)
 
 @app.on_event("shutdown")
 async def shutdown():
@@ -49,7 +42,8 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 app.include_router(user_router, prefix="/api/v1")
-app.include_router(chat_router, prefix="/api/v1")  # 添加这行
+# app.include_router(chat_router, prefix="/api/v1")  # 添加这行
+app.include_router(tarot_router, prefix="/api/v1")  # 添加这行
 
 app.include_router(diary_router, prefix="/api/v1")  # 添加这行
 

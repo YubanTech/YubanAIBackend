@@ -9,7 +9,7 @@ logger.setLevel(logging.DEBUG)
 from app.models.user import (
     CreateUserRequest, UpdateUserRequest, GetUserStatusRequest,
     GetUserGrowthRequest, GetUserStatusResponse, GetUserGrowthResponse,
-    TaskType  # 添加 TaskType 导入
+    TaskType, WxLoginRequest, LoginResponse  # 添加 TaskType 和 WxLoginRequest 导入
 )
 from app.services.user_service import UserService
 
@@ -65,9 +65,41 @@ async def get_user_growth(userId: str):
 @router.post("/users/{userId}/growth/{taskType}")
 async def update_user_growth(userId: str, taskType: TaskType):
     try:
-        result = await UserService.update_user_growth(userId, taskType)
+        result = await UserService.mark_task_completed(userId, taskType)
         if not result:
             raise HTTPException(status_code=400, detail="Invalid task or task already completed")
         return result
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/login/wechat", response_model=LoginResponse)
+async def login_with_wechat(login_request: WxLoginRequest):
+    try:
+        logger.debug(f"处理微信登录请求: {login_request.nickName}")
+        result = await UserService.login_with_wechat(login_request)
+        if not result:
+            logger.warning("登录失败")
+            raise HTTPException(status_code=400, detail="登录失败，请重试")
+        return result
+    except Exception as e:
+        logger.error(f"登录处理错误: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"服务器错误: {str(e)}")
+
+@router.post("/users/{userId}/growth/{taskType}/claim")
+async def claim_task_points(userId: str, taskType: TaskType):
+    """领取指定任务的积分"""
+    try:
+        result = await UserService.claim_task_points(userId, taskType)
+        if not result:
+            raise HTTPException(status_code=400, detail="Task not completed or points already claimed")
+        return {
+            "message": "Points claimed successfully",
+            "taskType": taskType,
+            "pointsClaimed": result.get("pointsClaimed", 0),
+            "currentPoints": result.get("currentPoints", 0)
+        }
+    except Exception as e:
+        logger.error(f"Error claiming points: {str(e)}")
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))

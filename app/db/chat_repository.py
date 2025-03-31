@@ -8,7 +8,14 @@ class ChatRepository:
         self.collection = MongoDB.get_collection("chat_messages")
 
     async def save_message(self, message: ChatMessage):
-        await self.collection.insert_one(message.dict())
+        # 将 Pydantic 模型转换为字典
+        message_dict = message.model_dump()
+        
+        # 确保存入数据库的消息包含 created_at 字段
+        if 'created_at' not in message_dict:
+            message_dict['created_at'] = datetime.now().isoformat()
+            
+        await self.collection.insert_one(message_dict)
 
     async def get_messages_by_day(self, user_id: str, date_int: int) -> List[ChatMessage]:
         cursor = self.collection.find({
