@@ -1,12 +1,14 @@
+import json
 from typing import List, Dict, Any
 import httpx
 from datetime import datetime
 from app.core.config import settings
+from app.models.chat import ChatMessage
 
 class DifyClient:
-    def __init__(self):
+    def __init__(self, api_key: str) -> None:
         self.base_url = settings.DIFY_API_BASE_URL
-        self.api_key = settings.DIFY_API_KEY
+        self.api_key = api_key
         self.headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
@@ -77,3 +79,52 @@ class DifyClient:
             except Exception as e:
                 print(f"获取消息历史时出错: {str(e)}")
                 return []
+
+    async def get_diary(self, user_name: str, user_id: str, chat_list: list[ChatMessage]) -> Dict[str, Any]:
+        chat_list_msg = [
+            {
+                "role": c.role,
+                "text": c.content,
+            }
+            for c in chat_list
+        ]
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            try:
+                request_data = {
+                    "inputs": {
+                        "user_name": user_name,
+                        "history_chat": json.dumps(chat_list_msg, ensure_ascii=False),
+                    },
+                    "user": user_id,
+                    "response_mode": "blocking"
+                }
+                try:
+                    print(f"发送请求体: ", json.dumps(request_data))
+                    response = await client.post(
+                        f"{self.base_url}/completion-messages",
+                        headers=self.headers,
+                        json=request_data
+                    )
+
+                    print(f"发送消息响应状态码: {response.status_code}")
+                    print(f"发送消息响应内容: {response.text}")
+
+                    if response.status_code == 200:
+                        data = response.json()
+                        print(f"解析后的响应数据: {data}")
+                        return data
+                    else:
+                        raise ValueError(f"API返回非200状态码: {response.status_code}, 响应内容: {response.text}")
+
+                except httpx.TimeoutException as e:
+                    print(f"请求超时: {str(e)}")
+                    raise
+                except httpx.RequestError as e:
+                    print(f"请求错误: {str(e)}")
+                    raise
+
+            except Exception as e:
+                print(f"发送消息时出错，详细错误: {str(e)}")
+                print(f"错误类型: {type(e)}")
+                raise

@@ -17,7 +17,7 @@ class ChatRepository:
             
         await self.collection.insert_one(message_dict)
 
-    async def get_messages_by_day(self, user_id: str, date_int: int) -> List[ChatMessage]:
+    async def get_messages_by_day(self, user_id: str, date_int: int) -> list[ChatMessage]:
         cursor = self.collection.find({
             "user_id": user_id,
             "date_int": date_int
