@@ -13,7 +13,8 @@ logging.basicConfig(
 )
 
 from app.api.user import router as user_router
-# from app.api.chat import router as chat_router  # 添加这行
+from app.api.diary import router as diary_router
+from app.api.chat import router as chat_router  # 添加这行
 from app.api.tarot import router as tarot_router  # 添加这行
 from app.database.mongodb import MongoDB
 
@@ -41,8 +42,10 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 app.include_router(user_router, prefix="/api/v1")
-# app.include_router(chat_router, prefix="/api/v1")  # 添加这行
+app.include_router(chat_router, prefix="/api/v1")  # 添加这行
 app.include_router(tarot_router, prefix="/api/v1")  # 添加这行
+
+app.include_router(diary_router, prefix="/api/v1")  # 添加这行
 
 if __name__ == "__main__":
     import uvicorn

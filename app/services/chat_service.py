@@ -12,7 +12,7 @@ from app.database.mongodb import MongoDB  # Add this import
 class ChatService:
     def __init__(self):
         self.use_dify = True
-        self.dify_client = DifyClient() if self.use_dify else None
+        self.dify_client = DifyClient(settings.DIFY_CHAT_API_KEY) if self.use_dify else None
         self.user_service = UserService()
         self.chat_repository = ChatRepository()  # 添加 chat repository
         
@@ -191,3 +191,5 @@ class ChatService:
             user_info.createdTime = int(time.time() * 1000)  # 使用当前时间戳作为默认值
             
         return user_info
+
+    # async def
