@@ -22,8 +22,11 @@ class DifyClient:
                 request_data = {
                     "query": message,
                     "inputs": {
+                        # "agent_name": agent_name,
+                        # "userNickName": userNickName,
+                        "user_name": userNickName,
                         "agent_name": agent_name,
-                        "userNickName": userNickName,
+                        "diary_info": ""
                     },
                     "user": user,
                     "response_mode": "blocking"
@@ -89,7 +92,7 @@ class DifyClient:
             for c in chat_list
         ]
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             try:
                 request_data = {
                     "inputs": {

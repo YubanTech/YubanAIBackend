@@ -12,7 +12,8 @@ class Settings(BaseSettings):
     LINGYIWANWU_API_KEY: str = "a25cc7a127964db28793dfaf724debc8"
     LINGYIWANWU_API_BASE: str = "https://api.lingyiwanwu.com/v1"
     DIFY_API_BASE_URL: str = "https://api.dify.ai/v1"
-    DIFY_CHAT_API_KEY: str = "app-WVujRYUcFvvyyncgVcRs3au7"
+    # DIFY_CHAT_API_KEY: str = "app-WVujRYUcFvvyyncgVcRs3au7"
+    DIFY_CHAT_API_KEY: str = "app-GPwOzzY4dOgZygQdOTCjKkIX"
     DIFY_DIARY_API_KEY: str = "app-2RP6tEB31Vtu5BaxgluAKonH"
 
 
