@@ -30,8 +30,20 @@ async def create_user(user_request: CreateUserRequest):
 async def update_user(userId: str, update_request: UpdateUserRequest):
     try:
         logger.debug(f"Updating user {userId} with request: {update_request}")
-        await UserService.update_user(userId, update_request)
-        return {"message": "User updated successfully"}
+        result = await UserService.update_user(userId, update_request)
+        
+        if not result["success"]:
+            # 用户不存在的情况
+            raise HTTPException(status_code=404, detail=result["message"])
+        
+        # 返回更新结果
+        return {
+            "success": result["success"],
+            "message": result["message"]
+        }
+    except HTTPException:
+        # 重新抛出HTTP异常
+        raise
     except Exception as e:
         logger.error(f"Error updating user: {str(e)}")
         logger.error(traceback.format_exc())

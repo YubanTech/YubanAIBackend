@@ -24,6 +24,9 @@ from app.models.db_models import user_info_to_dict, user_growth_to_dict, user_ta
 # 添加微信登录相关常量
 WX_CODE2SESSION_URL = "https://api.weixin.qq.com/sns/jscode2session"
 
+# 设置pymongo的日志级别为WARNING
+logging.getLogger('pymongo').setLevel(logging.WARNING)
+
 class UserService:
     @staticmethod
     def calculate_growth_days(created_time_ms: int) -> int:
@@ -125,10 +128,35 @@ class UserService:
         await task_collection.insert_many(tasks)
         
     @staticmethod
-    async def update_user(userId: str, update_request: UpdateUserRequest) -> None:
+    async def update_user(userId: str, update_request: UpdateUserRequest) -> dict:
+        """
+        更新用户信息
+        
+        Args:
+            userId: 用户ID
+            update_request: 更新请求对象
+            
+        Returns:
+            dict: 包含更新结果的字典
+                {
+                    "success": bool,  # 更新是否成功
+                    "message": str,   # 结果消息
+                    "user_exists": bool  # 用户是否存在
+                }
+        """
         user_collection = MongoDB.get_collection("users")
         
-        print(f"更新用户请求数据: {update_request}")  # 添加调试信息
+        # 先检查用户是否存在
+        existing_user = await user_collection.find_one({"userId": userId})
+        if not existing_user:
+            logger.warning(f"尝试更新不存在的用户: {userId}")
+            return {
+                "success": False,
+                "message": f"用户 {userId} 不存在",
+                "user_exists": False
+            }
+        
+        logger.info(f"更新用户请求数据: {update_request}")
         
         update_data = {
             "userNickName": update_request.userNickName,
@@ -138,16 +166,29 @@ class UserService:
         
         # 检查 agentId
         if hasattr(update_request, 'agentId') and update_request.agentId:
-            print(f"更新 agentId: {update_request.agentId}")  # 添加调试信息
+            logger.info(f"更新 agentId: {update_request.agentId}")
             update_data["agentId"] = update_request.agentId
         
-        print(f"最终更新数据: {update_data}")  # 添加调试信息
+        logger.info(f"最终更新数据: {update_data}")
         
         result = await user_collection.update_one(
             {"userId": userId},
             {"$set": update_data}
         )
-        print(f"更新结果: matched={result.matched_count}, modified={result.modified_count}")  # 添加调试信息
+        logger.info(f"更新结果: matched={result.matched_count}, modified={result.modified_count}")
+        
+        if result.modified_count > 0:
+            return {
+                "success": True,
+                "message": "用户信息更新成功",
+                "user_exists": True
+            }
+        else:
+            return {
+                "success": True,
+                "message": "用户信息未发生变化",
+                "user_exists": True
+            }
         
     @staticmethod
     async def get_user_status(userId: str) -> Optional[dict]:
@@ -177,6 +218,8 @@ class UserService:
             userNickName=processed_user_info.get("userNickName", ""),
             aiAgentName=processed_user_info.get("aiAgentName", ""),
             agentId=processed_user_info.get("agentId"),
+            openId=processed_user_info.get("openId"),
+            avatarUrl=processed_user_info.get("avatarUrl"),
             status=processed_user_info.get("status", UserStatus.LOGIN),
             lastUpdateTime=processed_user_info.get("lastUpdateTime", ""),
             createdTime=created_time_ms

@@ -15,7 +15,9 @@ def user_info_to_dict(user_info) -> Dict[str, Any]:
         "agentId": user_info.agentId,
         "status": user_info.status,
         "lastUpdateTime": current_time,
-        "createdTime": getattr(user_info, 'createdTime', current_ms_timestamp)  # 使用毫秒时间戳
+        "createdTime": getattr(user_info, 'createdTime', current_ms_timestamp),  # 使用毫秒时间戳
+        "openId": getattr(user_info, 'openId', None),  # 添加openId字段
+        "avatarUrl": getattr(user_info, 'avatarUrl', None)  # 添加avatarUrl字段
     }
 
 def user_growth_to_dict(user_growth) -> Dict[str, Any]:
