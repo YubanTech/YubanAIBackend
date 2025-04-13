@@ -7,8 +7,10 @@ import math
 import requests
 import uuid
 # 添加这两行
-WX_APPID = "wx86ab8c9cb936067c"
-WX_SECRET = "fb90299a4f66bba528809f4f8f3065d8"
+WX_APPID = "wx0a60e719f8bbc83e"
+# 注意：AppSecret需要定期检查有效性，如果登录失败并返回"invalid appsecret"错误，请更新此值
+# 可以从微信公众平台获取最新的AppSecret：https://mp.weixin.qq.com/ -> 开发 -> 开发管理 -> 开发设置
+WX_SECRET = "72fe9ec169cad1b5cef32689da6a0308"
 # 定义logger
 logger = logging.getLogger(__name__)
 
@@ -104,13 +106,13 @@ class UserService:
         
         # 创建用户任务
         tasks = []
-        for task_config in GrowthTasks.get_all_tasks().values():
+        for task in GrowthTasks.get_all_tasks().values():
             user_task = UserTask(
                 userId=user_request.userId,
-                taskType=task_config.type,
-                taskName=task_config.name,           # 添加任务名称
-                requiredProgress=task_config.requiredProgress,  # 添加所需进度
-                pointsReward=task_config.pointsReward,  # 添加奖励点数
+                taskType=task.type,
+                taskName=task.name,           # 添加任务名称
+                requiredProgress=task.requiredProgress,  # 添加所需进度
+                pointsReward=task.pointsReward,  # 添加奖励点数
                 progress=0,
                 isCompleted=False,
                 lastUpdateTime=current_time
@@ -416,6 +418,9 @@ class UserService:
                     user_task = UserTask(
                         userId=user_id,
                         taskType=task.type,
+                        taskName=task.name,           # 添加任务名称
+                        requiredProgress=task.requiredProgress,  # 添加所需进度
+                        pointsReward=task.pointsReward,  # 添加奖励点数
                         progress=0,
                         isCompleted=False,
                         lastUpdateTime=current_time
