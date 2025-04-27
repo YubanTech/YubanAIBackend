@@ -10,7 +10,7 @@ import uuid
 WX_APPID = "wx0a60e719f8bbc83e"
 # 注意：AppSecret需要定期检查有效性，如果登录失败并返回"invalid appsecret"错误，请更新此值
 # 可以从微信公众平台获取最新的AppSecret：https://mp.weixin.qq.com/ -> 开发 -> 开发管理 -> 开发设置
-WX_SECRET = "72fe9ec169cad1b5cef32689da6a0308"
+WX_SECRET = "bf935255aeb272a51c4fe077012486c6"
 # 定义logger
 logger = logging.getLogger(__name__)
 
