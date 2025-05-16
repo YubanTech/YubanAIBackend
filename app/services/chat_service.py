@@ -58,13 +58,13 @@ class ChatService:
 
         try:
             print("开始保存用户消息")
-            current_time = datetime.now().isoformat()
+            # current_time = datetime.now().isoformat()
             user_message = ChatMessage(
                 user_id=user_id,
                 role="user",
                 content=message,
                 agent_name=user_info.aiAgentName,
-                created_at=current_time  # 使用 created_at
+                created_at=datetime.now().isoformat()  # 使用 created_at
             )
             await self.chat_repository.save_message(user_message)
             print("用户消息保存成功")
@@ -101,7 +101,7 @@ class ChatService:
                     role="assistant",
                     content=answer,
                     agent_name=user_info.aiAgentName,
-                    created_at=current_time  # 修改为 created_at
+                    created_at=datetime.now().isoformat()  # 修改为 created_at
                 )
                 await self.chat_repository.save_message(assistant_message)
                 print("助手回复保存成功")
