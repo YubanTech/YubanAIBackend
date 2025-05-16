@@ -247,8 +247,8 @@ class UserService:
     @staticmethod
     def _should_reset_daily_task(task: Dict[str, Any]) -> bool:
         """判断每日任务是否需要重置"""
-        if task["taskType"] != TaskType.DAILY_CHECK_IN:
-            return False
+        # if task["taskType"] != TaskType.DAILY_CHECK_IN:
+        #     return False
         
         last_update = datetime.fromisoformat(task["lastUpdateTime"])
         today_start = UserService._get_today_start()
@@ -273,6 +273,13 @@ class UserService:
         async for task in task_collection.find({"userId": userId}):
             print(f"处理任务: {task}")
             processed_task = UserService._process_mongodb_doc(task)
+            if UserService._should_reset_daily_task(processed_task):
+            # 如果是新的一天，重置任务状态
+                    processed_task["isCompleted"] = False
+                    processed_task["progress"] = 0
+                    processed_task["pointsClaimed"] = False
+
+
             task_config = all_task_configs.get(processed_task["taskType"])
             
             if task_config:
@@ -312,19 +319,22 @@ class UserService:
             return None
             
         # 处理每日任务的特殊逻辑
-        if taskType == TaskType.DAILY_CHECK_IN:
-            if UserService._should_reset_daily_task(user_task):
-                # 如果是新的一天，重置任务状态
-                user_task["isCompleted"] = False
-                user_task["progress"] = 0
-                user_task["pointsClaimed"] = False
-            elif user_task["isCompleted"]:
-                # 如果是同一天且已完成，则不能重复完成
-                return await UserService.get_user_growth(userId)
-        else:
-            # 非每日任务，如果已完成则不能重复完成
-            if user_task["isCompleted"]:
-                return await UserService.get_user_growth(userId)
+        # if taskType == TaskType.DAILY_CHECK_IN:
+        #     if UserService._should_reset_daily_task(user_task):
+        #         # 如果是新的一天，重置任务状态
+        #         user_task["isCompleted"] = False
+        #         user_task["progress"] = 0
+        #         user_task["pointsClaimed"] = False
+        #     elif user_task["isCompleted"]:
+        #         # 如果是同一天且已完成，则不能重复完成
+        #         return await UserService.get_user_growth(userId)
+        # else:
+        #     # 非每日任务，如果已完成则不能重复完成
+        #     if user_task["isCompleted"]:
+        #         return await UserService.get_user_growth(userId)
+
+        if user_task["isCompleted"]:
+            return await UserService.get_user_growth(userId)
             
         # 更新任务进度
         new_progress = min(user_task["progress"] + 1, task_config.requiredProgress)
@@ -342,16 +352,16 @@ class UserService:
         )
         
         # 对话类任务每次都增加积分，其他任务仅在完成时增加积分
-        if taskType == TaskType.CHAT_ROUNDS:
-            # 如果是对话任务，每次进度更新都给予相应积分
-            points_to_add = task_config.pointsReward
-            await growth_collection.update_one(
-                {"userId": userId},
-                {
-                    "$inc": {"currentPoints": points_to_add},
-                    "$set": {"lastUpdateTime": datetime.now().isoformat()}
-                }
-            )
+        # if taskType == TaskType.CHAT_ROUNDS:
+        #     # 如果是对话任务，每次进度更新都给予相应积分
+        #     points_to_add = task_config.pointsReward
+        #     await growth_collection.update_one(
+        #         {"userId": userId},
+        #         {
+        #             "$inc": {"currentPoints": points_to_add},
+        #             "$set": {"lastUpdateTime": datetime.now().isoformat()}
+        #         }
+        #     )
             
         # 返回更新后的用户成长信息
         return await UserService.get_user_growth(userId)
