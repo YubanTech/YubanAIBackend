@@ -1,11 +1,16 @@
+import traceback
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 from app.services.diary_service import DiaryService
+import logging
 import asyncio
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 class DiaryItem(BaseModel):
     diary: str
@@ -37,6 +42,7 @@ async def get_diarys(userId: str, start_day: int, end_day: int):
             diary_list=res
         )
     except Exception as e:
+        logger.error("get_diarys error", exc_info=e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/diary/get_diarys_last7day", response_model=DiaryResponse)

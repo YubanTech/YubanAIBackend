@@ -317,13 +317,14 @@ class UserService:
                 # 如果是新的一天，重置任务状态
                 user_task["isCompleted"] = False
                 user_task["progress"] = 0
+                user_task["pointsClaimed"] = False
             elif user_task["isCompleted"]:
                 # 如果是同一天且已完成，则不能重复完成
-                return None
+                return await UserService.get_user_growth(userId)
         else:
             # 非每日任务，如果已完成则不能重复完成
             if user_task["isCompleted"]:
-                return None
+                return await UserService.get_user_growth(userId)
             
         # 更新任务进度
         new_progress = min(user_task["progress"] + 1, task_config.requiredProgress)
@@ -341,7 +342,7 @@ class UserService:
         )
         
         # 对话类任务每次都增加积分，其他任务仅在完成时增加积分
-        if taskType == TaskType.CHAT_ROUNDS or is_completed:
+        if taskType == TaskType.CHAT_ROUNDS:
             # 如果是对话任务，每次进度更新都给予相应积分
             points_to_add = task_config.pointsReward
             await growth_collection.update_one(

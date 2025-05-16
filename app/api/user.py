@@ -77,11 +77,13 @@ async def get_user_growth(userId: str):
 @router.post("/users/{userId}/growth/{taskType}")
 async def update_user_growth(userId: str, taskType: TaskType):
     try:
-        result = await UserService.mark_task_completed(userId, taskType)
+        # result = await UserService.mark_task_completed(userId, taskType)
+        result = await UserService.update_user_growth(userId, taskType)
         if not result:
             raise HTTPException(status_code=400, detail="Invalid task or task already completed")
         return result
     except Exception as e:
+        logger.error(f"Error updating user growth:", exc_info=e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/login/wechat", response_model=LoginResponse)

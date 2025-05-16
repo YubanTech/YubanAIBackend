@@ -17,7 +17,11 @@ class DiaryService:
 
     async def check_diary(self, user_id: str):
         lastday = int(datetime.today().strftime("%Y%m%d")) - 1
-        for i in range(DATE_RANGE):
+        user = await UserService.get_user(user_id)
+
+        startday = int(datetime.fromtimestamp(user.createdTime / 1000).strftime("%Y%m%d")) if len(str(user.createdTime)) == 13 else lastday
+        cnt = min(DATE_RANGE, lastday - startday + 1)
+        for i in range(cnt):
             day_int = lastday - i
             exist_diary = await self.diary_dao.exist_diary_by_day(user_id, day_int)
             # exist_message = await self.chat_dao.exist_messages(user_id, day_int)
