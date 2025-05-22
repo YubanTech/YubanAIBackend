@@ -275,9 +275,20 @@ class UserService:
             processed_task = UserService._process_mongodb_doc(task)
             if UserService._should_reset_daily_task(processed_task):
             # 如果是新的一天，重置任务状态
-                    processed_task["isCompleted"] = False
-                    processed_task["progress"] = 0
-                    processed_task["pointsClaimed"] = False
+                processed_task["isCompleted"] = False if processed_task["taskType"] != TaskType.DAILY_CHECK_IN else True
+                processed_task["progress"] = 0 if processed_task["taskType"] != TaskType.DAILY_CHECK_IN else 1
+                processed_task["pointsClaimed"] = False
+                await task_collection.update_one(
+                    {"userId": userId, "taskType": processed_task["taskType"]},
+                    {
+                        "$set": {
+                            "progress": processed_task["progress"],
+                            "isCompleted": processed_task["isCompleted"],
+                            "lastUpdateTime": datetime.now().isoformat(),
+                            "pointsClaimed": False
+                        }
+                    }
+                )
 
 
             task_config = all_task_configs.get(processed_task["taskType"])

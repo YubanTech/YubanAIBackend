@@ -28,7 +28,7 @@ class DiaryDao:
                 "$gte": start,
                 "$lte": end
             }
-        }).sort("date_int", 1)
+        }).sort("date_int", -1)
 
         messages = []
         async for doc in cursor:

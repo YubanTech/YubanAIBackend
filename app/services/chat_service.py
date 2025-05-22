@@ -63,6 +63,7 @@ class ChatService:
                 user_id=user_id,
                 role="user",
                 content=message,
+                date_int=int(datetime.today().strftime("%Y%m%d")),
                 agent_name=user_info.aiAgentName,
                 created_at=datetime.now().isoformat()  # 使用 created_at
             )
@@ -100,6 +101,7 @@ class ChatService:
                     user_id=user_id,
                     role="assistant",
                     content=answer,
+                    date_int=int(datetime.today().strftime("%Y%m%d")),
                     agent_name=user_info.aiAgentName,
                     created_at=datetime.now().isoformat()  # 修改为 created_at
                 )
@@ -123,6 +125,7 @@ class ChatService:
                     user_id=user_id,
                     role="assistant",
                     content=answer,
+                    date_int=int(datetime.today().strftime("%Y%m%d")),
                     agent_name=user_info.aiAgentName,
                     created_at=datetime.now().isoformat()  # 添加 created_at
                 )

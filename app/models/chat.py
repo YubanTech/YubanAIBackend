@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import List
 
@@ -7,7 +7,7 @@ class ChatMessage(BaseModel):
     role: str
     content: str
     # used for index
-    date_int: int = int(datetime.today().strftime("%Y%m%d"))
+    date_int: int = Field(default_factory=lambda: int(datetime.today().strftime("%Y%m%d")))
     agent_name: str
     created_at: str = datetime.now().isoformat()  # 改为 created_at
 
